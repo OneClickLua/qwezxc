@@ -271,7 +271,7 @@ task.spawn(function()
             
             local wStart = tick()
             while not activeTargetName and (tick() - wStart) < 2.5 do
-                task.wait(0.1)
+                task.wait(0.3)
                 pcall(function()
                     for _, gui in ipairs(playerGui:GetChildren()) do
                         if string.find(gui.Name, "TradeGUI") and not string.find(gui.Name, "Request") then
